@@ -1,3 +1,5 @@
+import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
+
 export async function POST(request) {
   const { messages } = await request.json();
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -26,6 +28,7 @@ export async function POST(request) {
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 1024,
+      system: SYSTEM_PROMPT,
       messages,
     }),
   });
