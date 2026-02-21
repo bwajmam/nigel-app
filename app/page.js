@@ -5,20 +5,45 @@ import { useState } from "react";
 export default function Home() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-    const userMessage = { role: "user", content: input.trim() };
-    setMessages((prev) => [...prev, userMessage]);
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
+    const userContent = input.trim();
     setInput("");
-    // Placeholder: in a real app you'd call an API and add assistant reply
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        content: "Thanks for your message! I'm Nigel, your AI style coach. Connect me to an API to get real advice.",
-      },
-    ]);
+    const userMessage = { role: "user", content: userContent };
+    setMessages((prev) => [...prev, userMessage]);
+    setIsLoading(true);
+
+    try {
+      const nextMessages = [...messages, userMessage];
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: nextMessages }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: `Error: ${data.error ?? res.statusText}` },
+        ]);
+        return;
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.content ?? "" },
+      ]);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: `Error: ${err.message}` },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -47,6 +72,11 @@ export default function Home() {
               <p className="text-sm leading-relaxed">{msg.content}</p>
             </div>
           ))}
+          {isLoading && (
+            <div className="mr-auto max-w-[85%] rounded-2xl rounded-bl-md bg-zinc-800 px-4 py-2.5">
+              <p className="text-sm text-zinc-400">Thinking...</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -56,15 +86,17 @@ export default function Home() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            onKeyDown={(e) => e.key === "Enter" && !isLoading && handleSend()}
             placeholder="Message Nigel..."
-            className="flex-1 rounded-xl border border-zinc-600 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            disabled={isLoading}
+            className="flex-1 rounded-xl border border-zinc-600 bg-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
             onClick={handleSend}
-            className="rounded-xl bg-zinc-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-500"
+            disabled={isLoading}
+            className="rounded-xl bg-zinc-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-zinc-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Send
+            {isLoading ? "..." : "Send"}
           </button>
         </div>
       </div>
